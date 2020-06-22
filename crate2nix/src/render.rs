@@ -204,7 +204,14 @@ fn cfg_to_nix_expr(cfg: &CfgExpr) -> String {
     fn render(result: &mut String, cfg: &CfgExpr) {
         match cfg {
             CfgExpr::Value(Cfg::Name(name)) => {
-                result.push_str(&format!("target.{}", target(name)));
+                if ["unix", "windows"].contains(&name.as_str()) {
+                    result.push_str(&format!("target.\"{}\"", name))
+                } else {
+                    result.push_str(&format!(
+                        "(builtins.elem {} features)",
+                        escape_nix_string(name)
+                    ))
+                };
             }
             CfgExpr::Value(Cfg::KeyPair(key, value)) => {
                 let escaped_value = escape_nix_string(value);
@@ -257,6 +264,10 @@ fn test_render_cfg_to_nix_expr() {
     }
 
     assert_eq!("target.\"unix\"", &cfg_to_nix_expr(&name("unix")));
+    assert_eq!(
+        "(builtins.elem \"banana\" features)",
+        &cfg_to_nix_expr(&name("banana"))
+    );
     assert_eq!(
         "(target.\"os\" == \"linux\")",
         &cfg_to_nix_expr(&kv("target_os", "linux"))
